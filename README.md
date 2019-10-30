@@ -21,7 +21,11 @@ The following steps will make you run your spark cluster's containers.
 
 * Docker installed
 
-* Docker compose  installed
+* Docker compose installed
+
+* Download jdk-8u45-linux-x64.tar.gz and spark-2.3.4-bin-hadoop2.7.tar
+
+* Move jdk-8u45-linux-x64.tar.gz and spark-2.3.4-bin-hadoop2.7.tar to ./docker/base/sofware
 
 * A spark Application Jar to play with(Optional)
 
@@ -150,69 +154,10 @@ docker exec -ti spark-worker-2 ls -l /opt/spark-apps
 
 docker exec -ti spark-worker-2 ls -l /opt/spark-data
 
-# Worker 3 Validations
-docker exec -ti spark-worker-3 ls -l /opt/spark-apps
+![alt text](docs/spark-application.png "Result")
 
-docker exec -ti spark-worker-3 ls -l /opt/spark-data
-```
-After running one of this commands you have to see your app's jar and files.
-
-
-## Use docker spark-submit
-
+#Tip
 ```bash
-#Creating some variables to make the docker run command more readable
-#App jar environment used by the spark-submit image
-SPARK_APPLICATION_JAR_LOCATION="/opt/spark-apps/crimes-app.jar"
-#App main class environment used by the spark-submit image
-SPARK_APPLICATION_MAIN_CLASS="org.mvb.applications.CrimesApp"
-#Extra submit args used by the spark-submit image
-SPARK_SUBMIT_ARGS="--conf spark.executor.extraJavaOptions='-Dconfig-path=/opt/spark-apps/dev/config.conf'"
-
-#We have to use the same network as the spark cluster(internally the image resolves spark master as spark://spark-master:7077)
-docker run --network docker-spark-cluster_spark-network \
--v /mnt/spark-apps:/opt/spark-apps \
---env SPARK_APPLICATION_JAR_LOCATION=$SPARK_APPLICATION_JAR_LOCATION \
---env SPARK_APPLICATION_MAIN_CLASS=$SPARK_APPLICATION_MAIN_CLASS \
-spark-submit:2.3.1
-
+docker rmi $(docker images -q -a)
+docker stop $(docker ps -q) & docker rm $(docker ps -aq)
 ```
-
-After running this you will see an output pretty much like this:
-
-```bash
-Running Spark using the REST application submission protocol.
-2018-09-23 15:17:52 INFO  RestSubmissionClient:54 - Submitting a request to launch an application in spark://spark-master:6066.
-2018-09-23 15:17:53 INFO  RestSubmissionClient:54 - Submission successfully created as driver-20180923151753-0000. Polling submission state...
-2018-09-23 15:17:53 INFO  RestSubmissionClient:54 - Submitting a request for the status of submission driver-20180923151753-0000 in spark://spark-master:6066.
-2018-09-23 15:17:53 INFO  RestSubmissionClient:54 - State of driver driver-20180923151753-0000 is now RUNNING.
-2018-09-23 15:17:53 INFO  RestSubmissionClient:54 - Driver is running on worker worker-20180923151711-10.5.0.4-45381 at 10.5.0.4:45381.
-2018-09-23 15:17:53 INFO  RestSubmissionClient:54 - Server responded with CreateSubmissionResponse:
-{
-  "action" : "CreateSubmissionResponse",
-  "message" : "Driver successfully submitted as driver-20180923151753-0000",
-  "serverSparkVersion" : "2.3.1",
-  "submissionId" : "driver-20180923151753-0000",
-  "success" : true
-}
-```
-
-# Summary (What have I done :O?)
-
-* We compiled the necessary docker images to run spark master and worker containers.
-
-* We created a spark standalone cluster using 3 worker nodes and 1 master node using docker && docker-compose.
-
-* Copied the resources necessary to run a sample application.
-
-* Submitted an application to the cluster using a **spark-submit** docker image.
-
-* We ran a distributed application at home(just need enough cpu cores and RAM to do so).
-
-# Why a standalone cluster?
-
-* This is intended to be used for test purposses, basically a way of running distributed spark apps on your laptop or desktop.
-
-* Right now I don't have enough resources to make a Yarn, Mesos or Kubernetes based cluster :(.
-
-* This will be useful to use CI/CD pipelines for your spark apps(A really difficult and hot topic)
