@@ -1,17 +1,5 @@
 # Spark Cluster with Docker & docker-compose
 
-# General
-
-A simple spark standalone cluster for your testing environment purposses. A *docker-compose up* away from you solution for your spark development environment.
-
-The Docker compose will create the following containers:
-
-container|Ip address
----|---
-spark-master|10.5.0.2
-spark-worker-1|10.5.0.3
-spark-worker-2|10.5.0.4
-spark-worker-3|10.5.0.5
 
 # Installation
 
@@ -27,8 +15,6 @@ The following steps will make you run your spark cluster's containers.
 
 * Move jdk-8u45-linux-x64.tar.gz and spark-2.3.4-bin-hadoop2.7.tar to ./docker/base/sofware
 
-* A spark Application Jar to play with(Optional)
-
 ## Build the images
 
 The first step to deploy the cluster will be the build of the custom images, these builds can be performed with the *build-images.sh* script. 
@@ -42,20 +28,18 @@ chmod +x build-images.sh
 
 This will create the following docker images:
 
-* spark-base:2.3.1: A base image based on java:alpine-jdk-8 wich ships scala, python3 and spark 2.3.1
+* spark-base:latest: A base image based on centos:7, java:8 and spark 2.3.4
 
-* spark-master:2.3.1: A image based on the previously created spark image, used to create a spark master containers.
+* spark-master:latest: A image based on the previously created spark image, used to create a spark master containers.
 
-* spark-worker:2.3.1: A image based on the previously created spark image, used to create spark worker containers.
-
-* spark-submit:2.3.1: A image based on the previously created spark image, used to create spark submit containers(run, deliver driver and die gracefully).
+* spark-worker:latest: A image based on the previously created spark image, used to create spark worker containers.
 
 ## Run the docker-compose
 
 The final step to create your test cluster will be to run the compose file:
 
 ```sh
-docker-compose up --scale spark-worker=3
+docker-compose up -d --scale spark-worker=2
 ```
 
 ## Validate your cluster
@@ -64,95 +48,34 @@ Just validate your cluster accesing the spark UI on each worker & master URL.
 
 ### Spark Master
 
-http://10.5.0.2:8080/
+http://localhost:8080/
 
 ![alt text](docs/spark-master.png "Spark master UI")
 
-### Spark Worker 1
+# Submit application 
 
-http://10.5.0.3:8081/
+## Work directory introduction
 
-![alt text](docs/spark-worker-1.png "Spark worker 1 UI")
+* ./apps:/opt/spark-apps: It's where the application jar is placed
 
-### Spark Worker 2
+* ./data:/opt/spark-data: It's where the data is placed
 
-http://10.5.0.4:8081/
-
-![alt text](docs/spark-worker-2.png "Spark worker 2 UI")
-
-### Spark Worker 3
-
-http://10.5.0.5:8081/
-
-![alt text](docs/spark-worker-3.png "Spark worker 3 UI")
-
-# Resource Allocation 
-
-This cluster is shipped with three workers and one spark master, each of these has a particular set of resource allocation(basically RAM & cpu cores allocation).
-
-* The default CPU cores allocation for each spark worker is 1 core.
-
-* The default RAM for each spark-worker is 1024 MB.
-
-* The default RAM allocation for spark executors is 256mb.
-
-* The default RAM allocation for spark driver is 128mb
-
-* If you wish to modify this allocations just edit the env/spark-worker.sh file.
-
-# Binded Volumes
-
-To make app running easier I've shipped two volume mounts described in the following chart:
-
-Host Mount|Container Mount|Purposse
----|---|---
-/mnt/spark-apps|/opt/spark-apps|Used to make available your app's jars on all workers & master
-/mnt/spark-data|/opt/spark-data| Used to make available your app's data on all workers & master
-
-This is basically a dummy DFS created from docker Volumes...(maybe not...)
-
-# Run a sample application
-
-Now let`s make a **wild spark submit** to validate the distributed nature of our new toy following these steps:
-
-## Create a Scala spark app
-
-The first thing you need to do is to make a spark application. Our spark-submit image is designed to run scala code (soon will ship pyspark support guess I was just lazy to do so..).
-
-In my case I am using an app called  [crimes-app](https://). You can make or use your own scala app, I 've just used this one because I had it at hand.
+* ./result:/opt/spark-result: It is where the execution results are placed
 
 
-## Ship your jar & dependencies on the Workers and Master
-
-A necesary step to make a **spark-submit** is to copy your application bundle into all workers, also any configuration file or input file you need.
-
-Luckily for us we are using docker volumes so, you just have to copy your app and configs into /mnt/spark-apps, and your input files into /mnt/spark-files.
-
+## Submit spark application
 ```bash
-#Copy spark application into all workers's app folder
-cp /home/workspace/crimes-app/build/libs/crimes-app.jar /mnt/spark-apps
-
-#Copy spark application configs into all workers's app folder
-cp -r /home/workspace/crimes-app/config /mnt/spark-apps
-
-# Copy the file to be processed to all workers's data folder
-cp /home/Crimes_-_2001_to_present.csv /mnt/spark-files
+/spark/bin/spark-submit \
+  --class com.thoughtworks.spark.WordCount \
+  --master spark://spark-master:7077 \
+  --executor-memory 512M \
+  --total-executor-cores 1 \
+  /opt/spark-apps/sparkdemo-1.0.jar \
+  /opt/spark-data/word.txt /opt/spark-result/word
 ```
 
-## Check the successful copy of the data and app jar (Optional)
-
-This is not a necessary step, just if you are curious you can check if your app code and files are in place before running the spark-submit.
-
-```sh
-# Worker 1 Validations
-docker exec -ti spark-worker-1 ls -l /opt/spark-apps
-
-docker exec -ti spark-worker-1 ls -l /opt/spark-data
-
-# Worker 2 Validations
-docker exec -ti spark-worker-2 ls -l /opt/spark-apps
-
-docker exec -ti spark-worker-2 ls -l /opt/spark-data
+## Execution results
+![alt text](docs/spark-master.png "Spark master UI")
 
 ![alt text](docs/spark-application.png "Result")
 
